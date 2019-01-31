@@ -16,7 +16,20 @@ describe LogStash::Outputs::Gelf do
 
     subject { LogStash::Outputs::Gelf.new("host" => host, "port" => port ) }
 
-    let(:properties) { { "message" => "This is a message!"} }
+    let(:properties) {
+      {
+        "message" => "This is a message!",
+        "custom_field" => "foo",
+        "custom_nested_field" => {
+          "foo" => {
+            "bar" => "baz",
+            "qux" => {
+              "quux" => "corge"
+            }
+          }
+        }
+      }
+    }
     let(:event)      { LogStash::Event.new(properties) }
     let(:gelf)       { GELF::Notifier.new(host, port, subject.chunksize) }
 
@@ -26,9 +39,16 @@ describe LogStash::Outputs::Gelf do
     end
 
     it "sends the generated event to gelf" do
-      expect(subject.gelf).to receive(:notify!).with(hash_including("short_message"=>"This is a message!",
-                                                                    "full_message"=>"This is a message!"),
-                                                     hash_including(:timestamp))
+      expect(subject.gelf).to receive(:notify!).with(
+        hash_including(
+          "short_message"=>"This is a message!",
+          "full_message"=>"This is a message!",
+          "_custom_field" => "foo",
+          "_custom_nested_field_foo_bar" => "baz",
+          "_custom_nested_field_foo_qux_quux" => "corge"
+        ),
+        hash_including(:timestamp),
+      )
       subject.receive(event)
     end
   end

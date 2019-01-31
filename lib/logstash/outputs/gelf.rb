@@ -119,6 +119,20 @@ class LogStash::Outputs::Gelf < LogStash::Outputs::Base
      }
   end # def register
 
+  def flatten_hash(hash, old_path = [], result = {})
+    hash.each do |key, value|
+      current_path = old_path + [key]
+
+      if !value.respond_to?(:keys)
+        result[current_path.join("_")] = value
+      else
+        flatten_hash(value, current_path, result)
+      end
+    end
+
+    result
+  end # def flatten_hash
+
   public
   def receive(event)
     
@@ -143,7 +157,7 @@ class LogStash::Outputs::Gelf < LogStash::Outputs::Base
 
     if @ship_metadata
       event.to_hash.each do |name, value|
-        next if value == nil
+        next if value.nil?
         next if name == "message"
 
         # Trim leading '_' in the event
@@ -153,9 +167,10 @@ class LogStash::Outputs::Gelf < LogStash::Outputs::Base
           if value.is_a?(Array)
             m["_#{name}"] = value.join(', ')
           elsif value.is_a?(Hash)
-            value.each do |hash_name, hash_value|
-              m["_#{name}_#{hash_name}"] = hash_value
-            end
+
+            # For nested Hash, recurse into full tree.
+            flatten_hash(value, ["_#{name}"], m)
+
           else
             # Non array values should be presented as-is
             # https://logstash.jira.com/browse/LOGSTASH-113
