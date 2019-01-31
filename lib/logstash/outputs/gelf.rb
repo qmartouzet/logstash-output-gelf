@@ -46,6 +46,11 @@ class LogStash::Outputs::Gelf < LogStash::Outputs::Base
   # messages. These will be sent as underscored "additional fields".
   config :ship_metadata, :validate => :boolean, :default => true
 
+  # When `ship_metadata` is set, specify key separator for nested fields.
+  # For example, `"foo" => { "bar" => "baz", "qux" => { "quux" => "corge"} }` gives 2 fields :
+  # `_foo_bar = baz` and `_foo_qux_quux = corge`.
+  config :metadata_nested_field_separator, :validate => :string, :default => "_"
+
   # Ship tags within events. This will cause Logstash to ship the tags of an
   # event as the field `\_tags`.
   config :ship_tags, :validate => :boolean, :default => true
@@ -124,7 +129,7 @@ class LogStash::Outputs::Gelf < LogStash::Outputs::Base
       current_path = old_path + [key]
 
       if !value.respond_to?(:keys)
-        result[current_path.join("_")] = value
+        result[current_path.join(@metadata_nested_field_separator)] = value
       else
         flatten_hash(value, current_path, result)
       end
